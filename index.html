@@ -102,16 +102,13 @@ button {
   border: 1px solid #ccc;
   -webkit-overflow-scrolling: touch;
 
-  /* 🕌 FULL IMAGE + LIGHT MERGE */
   background:
     linear-gradient(rgba(255,255,255,0.98), rgba(255,255,255,0.90)),
     url("https://raw.githubusercontent.com/noordeen2470-prog/islamtracker/003de2be0154af1efeb7f6cd39329ad1f168f0a9/preview.png");
 
-  background-size: cover;
-
-  /* 👇 IMPORTANT FOR FULL HEIGHT FEEL */
+  background-size: cover;       /* ✅ no stretch */
+  background-position: center;  /* ✅ keeps image balanced */
   background-repeat: no-repeat;
-  background-position: top center;
 
   border-radius: 10px;
 }
