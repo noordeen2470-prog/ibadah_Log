@@ -486,7 +486,6 @@ async function loadAllData() {
 }
 
 window.onload = async function() {
-
   // ⚡ 1. Load instantly from local
   let savedStart = localStorage.getItem("startDate") || "2026-04-09";
   let savedEnd = localStorage.getItem("endDate") || "2026-05-09";
@@ -496,7 +495,7 @@ window.onload = async function() {
 
   generateTable(); // ⚡ instant UI (no waiting)
 
-  // 🌐 2. Load cloud in background
+  // 🌐 2. Load cloud data immediately (without waiting for interval)
   await loadAllData();
 
   // 🔁 3. Update with cloud data
@@ -507,13 +506,14 @@ window.onload = async function() {
   document.getElementById("endDate").value = cloudEnd;
 
   generateTable(); // refresh with synced data
-  // 🔁 Auto sync every 2 seconds (like WhatsApp ticks)
-setInterval(async () => {
-  if (!isCloudLoaded) return; // avoid overlap
 
-  isCloudLoaded = false;
-  await loadAllData();
-}, 3000);
+  // 🔁 Auto sync every 3 seconds (like WhatsApp ticks) to keep the sync going
+  setInterval(async () => {
+    if (!isCloudLoaded) return; // avoid overlap
+
+    isCloudLoaded = false;
+    await loadAllData();
+  }, 3000);
 };
 
 function toggleEditor() {
