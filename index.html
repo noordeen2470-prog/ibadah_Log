@@ -231,11 +231,15 @@ style="width:100%;padding:10px;margin-bottom:10px;border-radius:8px;font-size:15
 
 <script>
 
+  // API configuration variables
   const BIN_ID = "69daa08baaba882197eb0f1a";
-const API_KEY = "$2a$10$cw5pgORKICoBNC5HSXnZiuWV2I/lqYyA4oRf7bsRycZwL1aDfganS";
+  const API_KEY = "$2a$10$cw5pgORKICoBNC5HSXnZiuWV2I/lqYyA4oRf7bsRycZwL1aDfganS";
 
-let cloudData = {};
-let settings = {};
+  // Cloud Data storage variables
+  let cloudData = {};
+  let settings = {};
+  let isCloudLoaded = false; // Track if the cloud data is loaded
+  let lastCloudData = "";
 
 let routineTitle = localStorage.getItem("routineTitle") || "Routine (WHEN + WHAT)";
 
@@ -465,21 +469,51 @@ async function loadAllData() {
   });
 
   let json = await res.json();
- cloudData = json.record.data || {};
-settings = json.record.settings || {};
+
+  let newData = JSON.stringify(json.record);
+
+  // ✅ Only update if something changed
+  if (newData !== lastCloudData) {
+    cloudData = json.record.data || {};
+    settings = json.record.settings || {};
+
+    lastCloudData = newData;
+
+    generateTable(); // 🔁 update UI
+  }
+
+  isCloudLoaded = true;
 }
 
 window.onload = async function() {
 
-  await loadAllData(); // 🔥 MUST LOAD CLOUD FIRST
-
-  let savedStart = settings.startDate || localStorage.getItem("startDate") || "2026-04-09";
-let savedEnd = settings.endDate || localStorage.getItem("endDate") || "2026-05-09";
+  // ⚡ 1. Load instantly from local
+  let savedStart = localStorage.getItem("startDate") || "2026-04-09";
+  let savedEnd = localStorage.getItem("endDate") || "2026-05-09";
 
   document.getElementById("startDate").value = savedStart;
   document.getElementById("endDate").value = savedEnd;
 
-  generateTable();
+  generateTable(); // ⚡ instant UI (no waiting)
+
+  // 🌐 2. Load cloud in background
+  await loadAllData();
+
+  // 🔁 3. Update with cloud data
+  let cloudStart = settings.startDate || savedStart;
+  let cloudEnd = settings.endDate || savedEnd;
+
+  document.getElementById("startDate").value = cloudStart;
+  document.getElementById("endDate").value = cloudEnd;
+
+  generateTable(); // refresh with synced data
+  // 🔁 Auto sync every 2 seconds (like WhatsApp ticks)
+setInterval(async () => {
+  if (!isCloudLoaded) return; // avoid overlap
+
+  isCloudLoaded = false;
+  await loadAllData();
+}, 3000);
 };
 
 function toggleEditor() {
