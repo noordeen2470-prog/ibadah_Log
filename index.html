@@ -217,7 +217,7 @@ style="width:100%;padding:10px;margin-bottom:10px;border-radius:8px;font-size:15
 <div class="date-bar">
   From: <input type="date" id="startDate">
   To: <input type="date" id="endDate">
-  <button onclick="generateTable()">Apply</button>
+  <button onclick="applyDates()">Apply</button>
 <button onclick="toggleEditor()" style="background:#f1f5f9;color:#065f46;">Edit Routine</button>
 </div>
 
@@ -312,7 +312,10 @@ async function saveCheck(dateKey, habitIndex, value) {
       "Content-Type": "application/json",
       "X-Master-Key": API_KEY
     },
-    body: JSON.stringify({ data: cloudData })
+    body: JSON.stringify({
+  data: cloudData,
+  settings: settings
+})
   });
 }
 
@@ -358,7 +361,7 @@ function updateProgress() {
   document.getElementById("progressText").innerText = percent + "% Completed";
 }
 
-function generateTable() {
+function generateTable() {  
 
   const table = document.getElementById("trackerTable");
   table.innerHTML = "";
@@ -371,7 +374,7 @@ function generateTable() {
 
   localStorage.setItem("startDate", startInput);
   localStorage.setItem("endDate", endInput);
-  saveSettings(startInput, endInput);
+
 
   let days = [];
   let temp = new Date(start);
@@ -443,6 +446,17 @@ row += `<td class="${highlight}">
   updateProgress();
 }
 
+function applyDates() {
+  const startInput = document.getElementById("startDate").value;
+  const endInput = document.getElementById("endDate").value;
+
+  if (startInput && endInput) {
+    saveSettings(startInput, endInput);
+  }
+
+  generateTable();
+}
+
 async function loadAllData() {
   let res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
     headers: {
@@ -451,7 +465,7 @@ async function loadAllData() {
   });
 
   let json = await res.json();
-  cloudData = json.record.data || {};
+ cloudData = json.record.data || {};
 settings = json.record.settings || {};
 }
 
