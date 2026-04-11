@@ -235,6 +235,7 @@ style="width:100%;padding:10px;margin-bottom:10px;border-radius:8px;font-size:15
 const API_KEY = "$2a$10$cw5pgORKICoBNC5HSXnZiuWV2I/lqYyA4oRf7bsRycZwL1aDfganS";
 
 let cloudData = {};
+let settings = {};
 
 let routineTitle = localStorage.getItem("routineTitle") || "Routine (WHEN + WHAT)";
 
@@ -315,6 +316,23 @@ async function saveCheck(dateKey, habitIndex, value) {
   });
 }
 
+async function saveSettings(start, end) {
+  settings.startDate = start;
+  settings.endDate = end;
+
+  await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Master-Key": API_KEY
+    },
+    body: JSON.stringify({
+      data: cloudData,
+      settings: settings
+    })
+  });
+}
+
 function loadCheck(dateKey, habitIndex) {
   const key = dateKey + "_" + habitIndex;
   return cloudData[key] === true;
@@ -353,6 +371,7 @@ function generateTable() {
 
   localStorage.setItem("startDate", startInput);
   localStorage.setItem("endDate", endInput);
+  saveSettings(startInput, endInput);
 
   let days = [];
   let temp = new Date(start);
@@ -433,14 +452,15 @@ async function loadAllData() {
 
   let json = await res.json();
   cloudData = json.record.data || {};
+settings = json.record.settings || {};
 }
 
 window.onload = async function() {
 
   await loadAllData(); // 🔥 MUST LOAD CLOUD FIRST
 
-  let savedStart = localStorage.getItem("startDate") || "2026-04-09";
-  let savedEnd = localStorage.getItem("endDate") || "2026-05-09";
+  let savedStart = settings.startDate || localStorage.getItem("startDate") || "2026-04-09";
+let savedEnd = settings.endDate || localStorage.getItem("endDate") || "2026-05-09";
 
   document.getElementById("startDate").value = savedStart;
   document.getElementById("endDate").value = savedEnd;
