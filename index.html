@@ -1,6 +1,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -233,10 +234,18 @@ style="width:100%;padding:10px;margin-bottom:10px;border-radius:8px;font-size:15
 
 <script>
 
+  const SESSION_ID = "main";
+
   // API configuration variables
+  const BIN_ID = "69daa08baaba882197eb0f1a";
   const API_KEY = "$2a$10$cw5pgORKICoBNC5HSXnZiuWV2I/lqYyA4oRf7bsRycZwL1aDfganS";
 
   // Cloud Data storage variables
+  let cloudData = {};
+  let settings = {};
+  let isCloudLoaded = false; // Track if the cloud data is loaded
+  let lastCloudData = "";
+  let ignoreCloudUpdate = false;
 
 let routineTitle = localStorage.getItem("routineTitle") || "Routine (WHEN + WHAT)";
 
@@ -300,6 +309,57 @@ let habits = JSON.parse(localStorage.getItem("habits")) || [
 "Pray Istikhara (2 rak'ah) for guidance (compulsory daily)",
 "Friday: Surah Al-Kahf (reminder)",
 ];
+
+
+async function saveCheck(dateKey, habitIndex, value) {
+  const key = dateKey + "_" + habitIndex;
+
+  cloudData[key] = value;
+
+  updateProgress(); // add this
+
+  try {
+    await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Master-Key": API_KEY
+      },
+      body: JSON.stringify({
+        data: cloudData,
+        settings: settings
+      })
+    });
+  } catch (err) {
+    console.error("Save failed", err);
+  }
+}
+
+async function saveSettings(start, end) {
+  settings.startDate = start;
+  settings.endDate = end;
+
+  try {
+    await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Master-Key": API_KEY
+      },
+      body: JSON.stringify({
+        data: cloudData,
+        settings: settings
+      })
+    });
+  } catch (err) {
+    console.error("Settings save failed", err);
+  }
+}
+
+function loadCheck(dateKey, habitIndex) {
+  const key = dateKey + "_" + habitIndex;
+  return cloudData[key] === true;
+}
 
 /* ✅ PROGRESS FUNCTION */
 function updateProgress() {
@@ -377,6 +437,8 @@ let dateKey = d.getFullYear() + "-" +
   String(d.getMonth() + 1).padStart(2, '0') + "-" +
   String(d.getDate()).padStart(2, '0');
 
+let checked = loadCheck(dateKey, habitIndex) ? "checked" : "";
+
 // ❌ disable other days
 if (
   (!isFriday && (isJummah || isKahf)) ||   // jummah & kahf only Friday
@@ -395,8 +457,8 @@ row += `<td class="${highlight}">
   <input type='checkbox'
 data-date="${dateKey}"
 data-habit="${habitIndex}"
-${localStorage.getItem(dateKey + "_" + habitIndex) === "true" ? "checked" : ""}
-onchange="saveLocal('${dateKey}', ${habitIndex}, this.checked); updateProgress();">
+${checked}
+onchange="saveCheck('${dateKey}', ${habitIndex}, this.checked); updateProgress();">
 </td>`;
     });
 
@@ -419,10 +481,50 @@ function applyDates() {
 }
 
 
+async function loadAllData() {
+  let res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+    headers: {
+      "X-Master-Key": API_KEY
+    }
+  });
+
+  let json = await res.json();
+
+  let newData = JSON.stringify(json.record);
+
+  if (ignoreCloudUpdate) return;
+
+if (newData !== lastCloudData) {
+if (!json.record) return;
+   cloudData = json.record.data || {};
+settings = json.record.settings || {};
+
+    lastCloudData = newData;
+
+    // ✅ UPDATE CHECKBOXES ONLY (NO FULL REBUILD)
+    document.querySelectorAll("input[type='checkbox'][data-date]").forEach(cb => {
+  let key = cb.dataset.date + "_" + cb.dataset.habit;
+
+  let shouldBeChecked = cloudData[key] === true;
+
+  // only update if different (IMPORTANT FIX)
+  if (cb.checked !== shouldBeChecked) {
+    cb.checked = shouldBeChecked;
+  }
+});
+
+    updateProgress();
+  }
+
+  isCloudLoaded = true;
+}
+let isSyncing = false;
+
 window.onload = async function() {
   // ⚡ 1. Load instantly from local
   let savedStart = localStorage.getItem("startDate") || "2026-04-09";
   let savedEnd = localStorage.getItem("endDate") || "2026-05-09";
+
 
   document.getElementById("startDate").value = savedStart;
   document.getElementById("endDate").value = savedEnd;
@@ -440,12 +542,6 @@ document.getElementById("startDate").value = cloudStart;
 document.getElementById("endDate").value = cloudEnd;
 
   // 🔁 Auto sync every 3 seconds (like WhatsApp ticks) to keep the sync going
-  setInterval(async () => {
-    if (!isCloudLoaded) return; // avoid overlap
-
-    isCloudLoaded = false;
-    await loadAllData();
-  }, 1000);
 };
 
 function toggleEditor() {
@@ -478,13 +574,45 @@ localStorage.setItem("routineTitle", routineTitle);
 
 }
 
-function saveLocal(cb) {
-  let key = cb.dataset.date + "_" + cb.dataset.habit;
-  localStorage.setItem(key, cb.checked);
-  updateProgress();
-}
-
 </script>
 
+<!-- Code injected by live-server -->
+<script>
+	// <![CDATA[  <-- For SVG support
+	if ('WebSocket' in window) {
+		(function () {
+			function refreshCSS() {
+				var sheets = [].slice.call(document.getElementsByTagName("link"));
+				var head = document.getElementsByTagName("head")[0];
+				for (var i = 0; i < sheets.length; ++i) {
+					var elem = sheets[i];
+					var parent = elem.parentElement || head;
+					parent.removeChild(elem);
+					var rel = elem.rel;
+					if (elem.href && typeof rel != "string" || rel.length == 0 || rel.toLowerCase() == "stylesheet") {
+						var url = elem.href.replace(/(&|\?)_cacheOverride=\d+/, '');
+						elem.href = url + (url.indexOf('?') >= 0 ? '&' : '?') + '_cacheOverride=' + (new Date().valueOf());
+					}
+					parent.appendChild(elem);
+				}
+			}
+			var protocol = window.location.protocol === 'http:' ? 'ws://' : 'wss://';
+			var address = protocol + window.location.host + window.location.pathname + '/ws';
+			var socket = new WebSocket(address);
+			socket.onmessage = function (msg) {
+				if (msg.data == 'reload') window.location.reload();
+				else if (msg.data == 'refreshcss') refreshCSS();
+			};
+			if (sessionStorage && !sessionStorage.getItem('IsThisFirstTime_Log_From_LiveServer')) {
+				console.log('Live reload enabled.');
+				sessionStorage.setItem('IsThisFirstTime_Log_From_LiveServer', true);
+			}
+		})();
+	}
+	else {
+		console.error('Upgrade your browser. This Browser is NOT supported WebSocket for Live-Reloading.');
+	}
+	// ]]>
+</script>
 </body>
 </html>
