@@ -3,22 +3,12 @@
 
 
 
-
-
-
 <!DOCTYPE html>
 <html>
 <head>
   <title>Islamic Routine Tracker</title>
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-   <link rel="apple-touch-icon" sizes="180x180" href="https://raw.githubusercontent.com/noordeen2470-prog/ibadah_Log/c26fe5607658eb61d577041584cb44d89d1f222a/Frame%201.png">
-
-  <link rel="icon" type="image/png" sizes="180x180" href="https://raw.githubusercontent.com/noordeen2470-prog/ibadah_Log/c26fe5607658eb61d577041584cb44d89d1f222a/Frame%201.png">
-
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="Routine Tracker">
-  <meta name="theme-color" content="#16a34a">
 <meta property="og:title" content="Islamic Routine Tracker">
 <meta property="og:description" content="Track your daily Islamic habits بسهولة 📊">
 
@@ -101,29 +91,28 @@ button {
 .table-container {
   width: 100%;
   height: 75vh;
-  overflow-x: auto;
-  overflow-y: auto;
-position: relative;
+  overflow: auto;
   border: 1px solid #ccc;
-   -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
-  background: #ffffff;
+  -webkit-overflow-scrolling: touch;
 
+  /* 🕌 FULL IMAGE + LIGHT MERGE */
   background:
     linear-gradient(rgba(255,255,255,0.98), rgba(255,255,255,0.90)),
     url("https://raw.githubusercontent.com/noordeen2470-prog/islamtracker/003de2be0154af1efeb7f6cd39329ad1f168f0a9/preview.png");
 
-  background-size: cover;       /* ✅ no stretch */
-  background-position: center;  /* ✅ keeps image balanced */
+  background-size: cover;
+
+  /* 👇 IMPORTANT FOR FULL HEIGHT FEEL */
   background-repeat: no-repeat;
+  background-position: top center;
 
   border-radius: 10px;
 }
 table {
-  border-collapse: separate;
-  border-spacing: 0;
- width: max-content;
-  min-width: max-content;
+  border-collapse: collapse;
+  width: max-content;
+  min-width: 100%;
+  background: transparent;
 }
 
 th, td {
@@ -138,14 +127,14 @@ th {
   color: #065f46;
   position: sticky;
   top: 0;
-  z-index: 6;
+  z-index: 2;
 }
 
 td:first-child, th:first-child {
   position: sticky;
   left: 0;
   background: #f9fafb;
-  z-index: 5;
+  z-index: 3;
   text-align: left;
   font-weight: bold;
 
@@ -153,13 +142,12 @@ td:first-child, th:first-child {
   word-break: break-word;
   line-height: 1.5;
 
-  min-width: 220px;
+  min-width: 320px;
   max-width: 420px;
-  border-right: 2px solid #ddd;
 }
 
 th:first-child {
-  z-index: 7;
+  z-index: 4;
   background: #dcfce7;
 }
 
@@ -199,12 +187,6 @@ input[type="checkbox"] {
     min-width: 220px;
     max-width: 240px;
   }
-
-  table {
-  border-collapse: separate;
-  border-spacing: 0;
-  width: 100%;
-  min-width: max-content;
 }
 </style>
 </head>
@@ -225,17 +207,20 @@ input[type="checkbox"] {
 </div>
 
 <!-- EDIT PANEL -->
-<div id="editorPanel" style="display:none; padding:10px;">
+ <div id="editorPanel" style="display:none; padding:10px;">
+  
   <input id="titleEditor" placeholder="Edit Title"
-style="width:100%;padding:10px;margin-bottom:10px;border-radius:8px;font-size:15px;">
+  style="width:100%;padding:10px;margin-bottom:10px;border-radius:8px;font-size:15px;">
+
   <textarea id="habitEditor" style="width:100%;height:250px;border-radius:10px;padding:12px;font-size:15px;"></textarea><br><br>
+  
   <button onclick="saveEditedHabits()">Save</button>
 </div>
 
 <div class="date-bar">
   From: <input type="date" id="startDate">
   To: <input type="date" id="endDate">
-  <button onclick="applyDates()">Apply</button>
+  <button onclick="generateTable()">Apply</button>
 <button onclick="toggleEditor()" style="background:#f1f5f9;color:#065f46;">Edit Routine</button>
 </div>
 
@@ -248,21 +233,6 @@ style="width:100%;padding:10px;margin-bottom:10px;border-radius:8px;font-size:15
 </div>
 
 <script>
-
-  const SESSION_ID = "main";
-
-  // API configuration variables
-  const BIN_ID = "69daa08baaba882197eb0f1a";
-  const API_KEY = "$2a$10$cw5pgORKICoBNC5HSXnZiuWV2I/lqYyA4oRf7bsRycZwL1aDfganS";
-
-  // Cloud Data storage variables
-  let cloudData = {};
-  let settings = {};
-  let isCloudLoaded = false; // Track if the cloud data is loaded
-  let lastCloudData = "";
-  let ignoreCloudUpdate = false;
-
-let routineTitle = localStorage.getItem("routineTitle") || "Routine (WHEN + WHAT)";
 
 let habits = JSON.parse(localStorage.getItem("habits")) || [ 
 
@@ -326,46 +296,32 @@ let habits = JSON.parse(localStorage.getItem("habits")) || [
 ];
 
 
+function saveCheck(dateKey, habitIndex, value) {
+  const key = dateKey + "_" + habitIndex;
 
+  localStorage.setItem(key, value);
 
-async function syncToCloud() {
-  await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Master-Key": API_KEY
-    },
-    body: JSON.stringify({
-      data: cloudData,
-      settings: settings
-    })
-  });
-}
+  // 🔥 force save for mobile
+  document.cookie = key + "=" + value + ";path=/;max-age=31536000";
 
-async function saveSettings(start, end) {
-  settings.startDate = start;
-  settings.endDate = end;
-
-  try {
-    await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Master-Key": API_KEY
-      },
-      body: JSON.stringify({
-        data: cloudData,
-        settings: settings
-      })
-    });
-  } catch (err) {
-    console.error("Settings save failed", err);
-  }
+  localStorage.setItem("lastSaved", Date.now());
 }
 
 function loadCheck(dateKey, habitIndex) {
   const key = dateKey + "_" + habitIndex;
-  return cloudData[key] === true;
+
+  let value = localStorage.getItem(key);
+
+  // 🔥 fallback from cookies (mobile fix)
+  if (value === null) {
+    const cookies = document.cookie.split("; ");
+    for (let c of cookies) {
+      const [k, v] = c.split("=");
+      if (k === key) value = v;
+    }
+  }
+
+  return value === "true";
 }
 
 /* ✅ PROGRESS FUNCTION */
@@ -387,8 +343,8 @@ function updateProgress() {
   document.getElementById("progressFill").style.width = percent + "%";
   document.getElementById("progressText").innerText = percent + "% Completed";
 }
-
-function generateTable() {  
+let routineTitle = localStorage.getItem("routineTitle") || "Routine (WHEN + WHAT)";
+function generateTable() {
 
   const table = document.getElementById("trackerTable");
   table.innerHTML = "";
@@ -402,10 +358,8 @@ function generateTable() {
   localStorage.setItem("startDate", startInput);
   localStorage.setItem("endDate", endInput);
 
-
   let days = [];
   let temp = new Date(start);
-
 
   while (temp <= end) {
     days.push(new Date(temp));
@@ -426,9 +380,6 @@ function generateTable() {
     header += "<th>" + d.getDate() + "</th>";
   }
 });
-
-updateProgress(); // ✅ put here
-
 
   header += "</tr>";
   table.innerHTML += header;
@@ -465,11 +416,8 @@ if (
 let highlight = (isFriday && (isJummah || isKahf)) ? "friday-special" : "";
 
 row += `<td class="${highlight}">
-  <input type='checkbox'
-data-date="${dateKey}"
-data-habit="${habitIndex}"
-${checked}
-onchange="saveCheck('${dateKey}', ${habitIndex}, this.checked); updateProgress();">
+  <input type='checkbox' ${checked}
+  onchange="saveCheck('${dateKey}', ${habitIndex}, this.checked); updateProgress();">
 </td>`;
     });
 
@@ -477,53 +425,10 @@ onchange="saveCheck('${dateKey}', ${habitIndex}, this.checked); updateProgress()
     table.innerHTML += row;
   });
 
+  updateProgress();
 }
 
-function applyDates() {
-  const startInput = document.getElementById("startDate").value;
-  const endInput = document.getElementById("endDate").value;
-
-  if (startInput && endInput) {
-    saveSettings(startInput, endInput);
-  }
-
-  generateTable();
-}
-
-
-async function loadAllData() {
-  let res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-    headers: {
-      "X-Master-Key": API_KEY
-    }
-  });
-
-  let json = await res.json();
-
-  let newData = JSON.stringify(json.record);
-
-  if (ignoreCloudUpdate) return;
-
-if (newData !== lastCloudData) {
-  cloudData = json.record.data || {};
-  settings = json.record.settings || {};
-}
-
-// update inputs
-document.getElementById("startDate").value = settings.startDate || "";
-document.getElementById("endDate").value = settings.endDate || "";
-
-// save latest
-lastCloudData = newData;
-
-// ❗ DO NOT rebuild table here
-
-  isCloudLoaded = true;
-}
-let isSyncing = false;
-
-
-window.onload = async function () {
+window.onload = function() {
 
   let savedStart = localStorage.getItem("startDate") || "2026-04-09";
   let savedEnd = localStorage.getItem("endDate") || "2026-05-09";
@@ -531,108 +436,47 @@ window.onload = async function () {
   document.getElementById("startDate").value = savedStart;
   document.getElementById("endDate").value = savedEnd;
 
-  // 1. load cloud FIRST
-
-
-  // 2. apply cloud dates if available
-
-
- await loadAllData();  // wait for cloud first
-
-
-if (settings.startDate && settings.endDate) {
-  document.getElementById("startDate").value = settings.startDate;
-  document.getElementById("endDate").value = settings.endDate;
-}
-generateTable();      // then build table
- updateProgress();
-
-  // 4. ensure progress is correct
-
+  generateTable();
 };
 
 function toggleEditor() {
   const panel = document.getElementById("editorPanel");
-  const textarea = document.getElementById("habitEditor");
 
   if (panel.style.display === "none") {
     panel.style.display = "block";
-    textarea.value = habits.join("\n");
+
+    // load habits
+    document.getElementById("habitEditor").value = habits.join("\n");
+
+    // load title
     document.getElementById("titleEditor").value = routineTitle;
+
   } else {
     panel.style.display = "none";
   }
 }
 
 function saveEditedHabits() {
-  const newTitle = document.getElementById("titleEditor").value;
   const text = document.getElementById("habitEditor").value;
+  const newTitle = document.getElementById("titleEditor").value;
 
+  // update habits
   habits = text.split("\n").filter(h => h.trim() !== "");
+
+  // update title
   routineTitle = newTitle || "Routine (WHEN + WHAT)";
-localStorage.setItem("routineTitle", routineTitle);
 
+  // save both
   localStorage.setItem("habits", JSON.stringify(habits));
+  localStorage.setItem("routineTitle", routineTitle);
 
+  // refresh table
   generateTable();
 
-  // ✅ CLOSE editor after save
+  // close editor
   document.getElementById("editorPanel").style.display = "none";
-
 }
 
-function saveCheck(dateKey, habitIndex, checked) {
-  const key = dateKey + "_" + habitIndex;
-
-  if (checked) {
-    cloudData[key] = true;
-  } else {
-    delete cloudData[key];
-  }
-
- clearTimeout(window.syncTimer);
-window.syncTimer = setTimeout(syncToCloud, 800);
-}
-
-</script>
-
-<!-- Code injected by live-server -->
-<script>
-	// <![CDATA[  <-- For SVG support
-	if ('WebSocket' in window) {
-		(function () {
-			function refreshCSS() {
-				var sheets = [].slice.call(document.getElementsByTagName("link"));
-				var head = document.getElementsByTagName("head")[0];
-				for (var i = 0; i < sheets.length; ++i) {
-					var elem = sheets[i];
-					var parent = elem.parentElement || head;
-					parent.removeChild(elem);
-					var rel = elem.rel;
-					if (elem.href && typeof rel != "string" || rel.length == 0 || rel.toLowerCase() == "stylesheet") {
-						var url = elem.href.replace(/(&|\?)_cacheOverride=\d+/, '');
-						elem.href = url + (url.indexOf('?') >= 0 ? '&' : '?') + '_cacheOverride=' + (new Date().valueOf());
-					}
-					parent.appendChild(elem);
-				}
-			}
-			var protocol = window.location.protocol === 'http:' ? 'ws://' : 'wss://';
-			var address = protocol + window.location.host + window.location.pathname + '/ws';
-			var socket = new WebSocket(address);
-			socket.onmessage = function (msg) {
-				if (msg.data == 'reload') window.location.reload();
-				else if (msg.data == 'refreshcss') refreshCSS();
-			};
-			if (sessionStorage && !sessionStorage.getItem('IsThisFirstTime_Log_From_LiveServer')) {
-				console.log('Live reload enabled.');
-				sessionStorage.setItem('IsThisFirstTime_Log_From_LiveServer', true);
-			}
-		})();
-	}
-	else {
-		console.error('Upgrade your browser. This Browser is NOT supported WebSocket for Live-Reloading.');
-	}
-	// ]]>
 </script>
 
 </body>
