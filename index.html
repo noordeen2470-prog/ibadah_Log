@@ -4,6 +4,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -519,19 +520,23 @@ window.onload = async function () {
   document.getElementById("endDate").value = savedEnd;
 
   // 1. load cloud FIRST
-  await loadAllData();
+
 
   // 2. apply cloud dates if available
-  if (settings.startDate && settings.endDate) {
-    document.getElementById("startDate").value = settings.startDate;
-    document.getElementById("endDate").value = settings.endDate;
-  }
 
-  // 3. build table AFTER data is ready
-  generateTable();
+
+ await loadAllData();  // wait for cloud first
+
+
+if (settings.startDate && settings.endDate) {
+  document.getElementById("startDate").value = settings.startDate;
+  document.getElementById("endDate").value = settings.endDate;
+}
+generateTable();      // then build table
+ updateProgress();
 
   // 4. ensure progress is correct
-  updateProgress();
+
 };
 
 function toggleEditor() {
