@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -438,8 +439,11 @@ if (
 let highlight = (isFriday && (isJummah || isKahf)) ? "friday-special" : "";
 
 row += `<td class="${highlight}">
-  <input type='checkbox' ${checked}
-  onchange="saveCheck('${dateKey}', ${habitIndex}, this.checked); updateProgress();">
+  <input type='checkbox'
+data-date="${dateKey}"
+data-habit="${habitIndex}"
+${checked}
+onchange="saveCheck('${dateKey}', ${habitIndex}, this.checked); updateProgress();">
 </td>`;
     });
 
@@ -472,14 +476,21 @@ async function loadAllData() {
 
   let newData = JSON.stringify(json.record);
 
-  // ✅ Only update if something changed
   if (newData !== lastCloudData) {
+
     cloudData = json.record.data || {};
     settings = json.record.settings || {};
 
     lastCloudData = newData;
 
-    generateTable(); // 🔁 update UI
+    // ✅ UPDATE CHECKBOXES ONLY (NO FULL REBUILD)
+    document.querySelectorAll("input[type='checkbox'][data-date]").forEach(cb => {
+      let key = cb.dataset.date + "_" + cb.dataset.habit;
+
+      cb.checked = cloudData[key] === true;
+    });
+
+    updateProgress();
   }
 
   isCloudLoaded = true;
@@ -500,12 +511,10 @@ window.onload = async function() {
 
   // 🔁 3. Update with cloud data
   let cloudStart = settings.startDate || savedStart;
-  let cloudEnd = settings.endDate || savedEnd;
+let cloudEnd = settings.endDate || savedEnd;
 
-  document.getElementById("startDate").value = cloudStart;
-  document.getElementById("endDate").value = cloudEnd;
-
-  generateTable(); // refresh with synced data
+document.getElementById("startDate").value = cloudStart;
+document.getElementById("endDate").value = cloudEnd;
 
   // 🔁 Auto sync every 3 seconds (like WhatsApp ticks) to keep the sync going
   setInterval(async () => {
@@ -513,7 +522,7 @@ window.onload = async function() {
 
     isCloudLoaded = false;
     await loadAllData();
-  }, 3000);
+  }, 1000);
 };
 
 function toggleEditor() {
