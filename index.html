@@ -1,5 +1,6 @@
 
 
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -241,6 +242,7 @@ style="width:100%;padding:10px;margin-bottom:10px;border-radius:8px;font-size:15
   let settings = {};
   let isCloudLoaded = false; // Track if the cloud data is loaded
   let lastCloudData = "";
+  let ignoreCloudUpdate = false;
 
 let routineTitle = localStorage.getItem("routineTitle") || "Routine (WHEN + WHAT)";
 
@@ -311,6 +313,8 @@ async function saveCheck(dateKey, habitIndex, value) {
 
   cloudData[key] = value;
 
+  ignoreCloudUpdate = true;
+
   await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
     method: "PUT",
     headers: {
@@ -318,10 +322,14 @@ async function saveCheck(dateKey, habitIndex, value) {
       "X-Master-Key": API_KEY
     },
     body: JSON.stringify({
-  data: cloudData,
-  settings: settings
-})
+      data: cloudData,
+      settings: settings
+    })
   });
+
+  setTimeout(() => {
+    ignoreCloudUpdate = false;
+  }, 3000);
 }
 
 async function saveSettings(start, end) {
@@ -476,7 +484,9 @@ async function loadAllData() {
 
   let newData = JSON.stringify(json.record);
 
-  if (newData !== lastCloudData) {
+  if (ignoreCloudUpdate) return;
+
+if (newData !== lastCloudData) {
 
     cloudData = json.record.data || {};
     settings = json.record.settings || {};
@@ -485,10 +495,15 @@ async function loadAllData() {
 
     // ✅ UPDATE CHECKBOXES ONLY (NO FULL REBUILD)
     document.querySelectorAll("input[type='checkbox'][data-date]").forEach(cb => {
-      let key = cb.dataset.date + "_" + cb.dataset.habit;
+  let key = cb.dataset.date + "_" + cb.dataset.habit;
 
-      cb.checked = cloudData[key] === true;
-    });
+  let shouldBeChecked = cloudData[key] === true;
+
+  // only update if different (IMPORTANT FIX)
+  if (cb.checked !== shouldBeChecked) {
+    cb.checked = shouldBeChecked;
+  }
+});
 
     updateProgress();
   }
