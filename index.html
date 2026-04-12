@@ -3,6 +3,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -312,28 +313,20 @@ let habits = JSON.parse(localStorage.getItem("habits")) || [
 ];
 
 
-async function saveCheck(dateKey, habitIndex, value) {
-  const key = dateKey + "_" + habitIndex;
 
-  cloudData[key] = value;
 
-  updateProgress(); // add this
-
-  try {
-    await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Master-Key": API_KEY
-      },
-      body: JSON.stringify({
-        data: cloudData,
-        settings: settings
-      })
-    });
-  } catch (err) {
-    console.error("Save failed", err);
-  }
+async function syncToCloud() {
+  await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Master-Key": API_KEY
+    },
+    body: JSON.stringify({
+      data: cloudData,
+      settings: settings
+    })
+  });
 }
 
 async function saveSettings(start, end) {
@@ -400,6 +393,7 @@ function generateTable() {
   let days = [];
   let temp = new Date(start);
 
+
   while (temp <= end) {
     days.push(new Date(temp));
     temp.setDate(temp.getDate() + 1);
@@ -419,6 +413,9 @@ function generateTable() {
     header += "<th>" + d.getDate() + "</th>";
   }
 });
+
+updateProgress(); // ✅ put here
+
 
   header += "</tr>";
   table.innerHTML += header;
@@ -467,7 +464,6 @@ onchange="saveCheck('${dateKey}', ${habitIndex}, this.checked); updateProgress()
     table.innerHTML += row;
   });
 
-  updateProgress();
 }
 
 function applyDates() {
@@ -496,53 +492,46 @@ async function loadAllData() {
   if (ignoreCloudUpdate) return;
 
 if (newData !== lastCloudData) {
-if (!json.record) return;
-   cloudData = json.record.data || {};
-settings = json.record.settings || {};
+  cloudData = json.record.data || {};
+  settings = json.record.settings || {};
+}
 
-    lastCloudData = newData;
+// update inputs
+document.getElementById("startDate").value = settings.startDate || "";
+document.getElementById("endDate").value = settings.endDate || "";
 
-    // ✅ UPDATE CHECKBOXES ONLY (NO FULL REBUILD)
-    document.querySelectorAll("input[type='checkbox'][data-date]").forEach(cb => {
-  let key = cb.dataset.date + "_" + cb.dataset.habit;
+// save latest
+lastCloudData = newData;
 
-  let shouldBeChecked = cloudData[key] === true;
-
-  // only update if different (IMPORTANT FIX)
-  if (cb.checked !== shouldBeChecked) {
-    cb.checked = shouldBeChecked;
-  }
-});
-
-    updateProgress();
-  }
+// ❗ DO NOT rebuild table here
 
   isCloudLoaded = true;
 }
 let isSyncing = false;
 
-window.onload = async function() {
-  // ⚡ 1. Load instantly from local
+
+window.onload = async function () {
+
   let savedStart = localStorage.getItem("startDate") || "2026-04-09";
   let savedEnd = localStorage.getItem("endDate") || "2026-05-09";
-
 
   document.getElementById("startDate").value = savedStart;
   document.getElementById("endDate").value = savedEnd;
 
-  generateTable(); // ⚡ instant UI (no waiting)
-
-  // 🌐 2. Load cloud data immediately (without waiting for interval)
+  // 1. load cloud FIRST
   await loadAllData();
 
-  // 🔁 3. Update with cloud data
-  let cloudStart = settings.startDate || savedStart;
-let cloudEnd = settings.endDate || savedEnd;
+  // 2. apply cloud dates if available
+  if (settings.startDate && settings.endDate) {
+    document.getElementById("startDate").value = settings.startDate;
+    document.getElementById("endDate").value = settings.endDate;
+  }
 
-document.getElementById("startDate").value = cloudStart;
-document.getElementById("endDate").value = cloudEnd;
+  // 3. build table AFTER data is ready
+  generateTable();
 
-  // 🔁 Auto sync every 3 seconds (like WhatsApp ticks) to keep the sync going
+  // 4. ensure progress is correct
+  updateProgress();
 };
 
 function toggleEditor() {
@@ -575,6 +564,19 @@ localStorage.setItem("routineTitle", routineTitle);
 
 }
 
+function saveCheck(dateKey, habitIndex, checked) {
+  const key = dateKey + "_" + habitIndex;
+
+  if (checked) {
+    cloudData[key] = true;
+  } else {
+    delete cloudData[key];
+  }
+
+ clearTimeout(window.syncTimer);
+window.syncTimer = setTimeout(syncToCloud, 800);
+}
+
 </script>
 
 <!-- Code injected by live-server -->
@@ -615,43 +617,6 @@ localStorage.setItem("routineTitle", routineTitle);
 	}
 	// ]]>
 </script>
-<!-- Code injected by live-server -->
-<script>
-	// <![CDATA[  <-- For SVG support
-	if ('WebSocket' in window) {
-		(function () {
-			function refreshCSS() {
-				var sheets = [].slice.call(document.getElementsByTagName("link"));
-				var head = document.getElementsByTagName("head")[0];
-				for (var i = 0; i < sheets.length; ++i) {
-					var elem = sheets[i];
-					var parent = elem.parentElement || head;
-					parent.removeChild(elem);
-					var rel = elem.rel;
-					if (elem.href && typeof rel != "string" || rel.length == 0 || rel.toLowerCase() == "stylesheet") {
-						var url = elem.href.replace(/(&|\?)_cacheOverride=\d+/, '');
-						elem.href = url + (url.indexOf('?') >= 0 ? '&' : '?') + '_cacheOverride=' + (new Date().valueOf());
-					}
-					parent.appendChild(elem);
-				}
-			}
-			var protocol = window.location.protocol === 'http:' ? 'ws://' : 'wss://';
-			var address = protocol + window.location.host + window.location.pathname + '/ws';
-			var socket = new WebSocket(address);
-			socket.onmessage = function (msg) {
-				if (msg.data == 'reload') window.location.reload();
-				else if (msg.data == 'refreshcss') refreshCSS();
-			};
-			if (sessionStorage && !sessionStorage.getItem('IsThisFirstTime_Log_From_LiveServer')) {
-				console.log('Live reload enabled.');
-				sessionStorage.setItem('IsThisFirstTime_Log_From_LiveServer', true);
-			}
-		})();
-	}
-	else {
-		console.error('Upgrade your browser. This Browser is NOT supported WebSocket for Live-Reloading.');
-	}
-	// ]]>
-</script>
+
 </body>
 </html>
